@@ -15,9 +15,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function fetchToken() {
     try {
+      // 先获取当前tab
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-      if (!tab.url || !tab.url.includes('qieman.com')) {
+      if (!tab.id || !tab.url || !tab.url.includes('qieman.com')) {
         statusDot.className = 'status-dot logged-out';
         statusText.textContent = '请先打开且慢网站';
         tokenValue.textContent = '-';
@@ -25,20 +26,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
 
-      // 通过content script通信获取token
-      chrome.runtime.sendMessage({ action: 'getToken' }, (data) => {
+      // 通过background service worker转发给content script
+      chrome.runtime.sendMessage({
+        target: 'content',
+        tabId: tab.id,
+        data: { action: 'getToken' }
+      }, (response) => {
         if (chrome.runtime.lastError) {
           statusDot.className = 'status-dot logged-out';
           statusText.textContent = '请刷新且慢页面后重试';
           tokenValue.textContent = '-';
           copyBtn.disabled = true;
+          console.error('[E大数字分身]', chrome.runtime.lastError.message);
           return;
         }
 
-        if (data && data.token) {
+        if (response && response.token) {
           statusDot.className = 'status-dot logged-in';
-          statusText.textContent = `已登录 (${data.nickname || data.phone || '未知用户'})`;
-          tokenValue.textContent = data.token;
+          statusText.textContent = `已登录 (${response.nickname || response.phone || '未知用户'})`;
+          tokenValue.textContent = response.token;
           copyBtn.disabled = false;
         } else {
           statusDot.className = 'status-dot logged-out';
