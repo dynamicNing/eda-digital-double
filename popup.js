@@ -15,30 +15,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function fetchToken() {
     try {
-      // 通过chrome.tabs.executeScript触发content script重新读取
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-      if (!tab.url.includes('qieman.com')) {
+      if (!tab.url || !tab.url.includes('qieman.com')) {
         statusDot.className = 'status-dot logged-out';
         statusText.textContent = '请先打开且慢网站';
         tokenValue.textContent = '-';
         return;
       }
 
-      // 执行脚本获取token
-      const results = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: () => {
-          return {
-            token: localStorage.getItem('access_token'),
-            phone: localStorage.getItem('phone'),
-            userId: localStorage.getItem('userId'),
-            nickname: localStorage.getItem('nickname')
-          };
-        }
+      // 使用tabs.executeScript读取token
+      const results = await chrome.tabs.executeScript(tab.id, {
+        code: `({
+          token: localStorage.getItem('access_token'),
+          phone: localStorage.getItem('phone'),
+          userId: localStorage.getItem('userId'),
+          nickname: localStorage.getItem('nickname')
+        })`
       });
 
-      const data = results[0].result;
+      const data = results[0];
 
       if (data.token) {
         statusDot.className = 'status-dot logged-in';
@@ -56,6 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       statusText.textContent = '读取失败: ' + err.message;
       tokenValue.textContent = '-';
       copyBtn.disabled = true;
+      console.error('[E大数字分身]', err);
     }
   }
 
