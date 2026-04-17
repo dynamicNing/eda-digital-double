@@ -1,5 +1,5 @@
-// popup.js - 处理token读取和复制逻辑
-document.addEventListener('DOMContentLoaded', async () => {
+// popup.js - 从chrome.storage.local读取token
+document.addEventListener('DOMContentLoaded', () => {
   const statusDot = document.getElementById('statusDot');
   const statusText = document.getElementById('statusText');
   const tokenValue = document.getElementById('tokenValue');
@@ -13,53 +13,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(() => toast.classList.remove('show'), 2000);
   }
 
-  async function fetchToken() {
-    try {
-      // 先获取当前tab
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-      if (!tab.id || !tab.url || !tab.url.includes('qieman.com')) {
-        statusDot.className = 'status-dot logged-out';
-        statusText.textContent = '请先打开且慢网站';
-        tokenValue.textContent = '-';
-        copyBtn.disabled = true;
-        return;
-      }
-
-      // 通过background service worker转发给content script
-      chrome.runtime.sendMessage({
-        target: 'content',
-        tabId: tab.id,
-        data: { action: 'getToken' }
-      }, (response) => {
-        if (chrome.runtime.lastError) {
-          statusDot.className = 'status-dot logged-out';
-          statusText.textContent = '请刷新且慢页面后重试';
-          tokenValue.textContent = '-';
-          copyBtn.disabled = true;
-          console.error('[E大数字分身]', chrome.runtime.lastError.message);
-          return;
-        }
-
-        if (response && response.token) {
-          statusDot.className = 'status-dot logged-in';
-          statusText.textContent = `已登录 (${response.nickname || response.phone || '未知用户'})`;
-          tokenValue.textContent = response.token;
-          copyBtn.disabled = false;
-        } else {
-          statusDot.className = 'status-dot logged-out';
-          statusText.textContent = '未登录或登录已过期';
-          tokenValue.textContent = '-';
-          copyBtn.disabled = true;
-        }
-      });
-    } catch (err) {
+  function render(data) {
+    if (data && data.token) {
+      statusDot.className = 'status-dot logged-in';
+      statusText.textContent = `已登录 (${data.nickname || '未知用户'})`;
+      tokenValue.textContent = data.token;
+      copyBtn.disabled = false;
+    } else {
       statusDot.className = 'status-dot logged-out';
-      statusText.textContent = '读取失败: ' + err.message;
+      statusText.textContent = '未登录，或请先打开且慢任意页面触发采集';
       tokenValue.textContent = '-';
       copyBtn.disabled = true;
-      console.error('[E大数字分身]', err);
     }
+  }
+
+  // 从storage读取
+  function fetchToken() {
+    chrome.storage.local.get(['qieman_token', 'qieman_nickname'], (data) => {
+      render({
+        token: data.qieman_token,
+        nickname: data.qieman_nickname
+      });
+    });
   }
 
   copyBtn.addEventListener('click', async () => {
@@ -72,6 +47,5 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   refreshBtn.addEventListener('click', fetchToken);
 
-  // 初始加载
   fetchToken();
 });
