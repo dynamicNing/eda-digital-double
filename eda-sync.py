@@ -156,11 +156,43 @@ def scan_and_sync(state):
     return committed
 
 
+def install_cron():
+    """安装每小时执行的定时任务"""
+    script_path = Path(__file__).resolve()
+    cron_cmd = f"cd {script_path.parent} && /usr/bin/python3 {script_path} --daemon"
+    cron_line = f"0 * * * * {cron_cmd} >> {LOG_FILE} 2>&1\n"
+    
+    # 读取现有crontab
+    result = subprocess.run(["crontab", "-l"], capture_output=True, text=True)
+    existing = result.stdout if result.returncode == 0 else ""
+    
+    # 检查是否已安装
+    if "eda-sync.py" in existing and "--daemon" in existing:
+        print("✅ 定时任务已存在，无需重复安装")
+        return
+    
+    # 添加新crontab
+    new_crontab = existing + cron_line
+    proc = subprocess.run(["crontab", "-"], input=new_crontab, text=True, 
+                         capture_output=True)
+    if proc.returncode == 0:
+        print("✅ 已安装每小时定时任务")
+        print(f"   命令: python3 {script_path} --daemon")
+        print(f"   日志: {LOG_FILE}")
+    else:
+        print(f"❌ 安装失败: {proc.stderr}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="E大数字分身 GitHub同步")
     parser.add_argument("--daemon", action="store_true", help="后台持续监控")
     parser.add_argument("--once", action="store_true", help="单次扫描")
+    parser.add_argument("--install", action="store_true", help="安装为定时任务（每小时检查）")
     args = parser.parse_args()
+    
+    if args.install:
+        install_cron()
+        return
     
     ensure_dirs()
     state = load_state()
