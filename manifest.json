@@ -1,11 +1,10 @@
 {
   "manifest_version": 3,
   "name": "E大数字分身",
-  "version": "1.0.2",
-  "description": "一键提取且慢(qieman.com)登录态access_token，用于数据抓取与分析",
+  "version": "1.1.0",
+  "description": "采集且慢长赢同路人中E大发布的帖子内容，仅供个人学习研究",
   "permissions": [
     "activeTab",
-    "cookies",
     "scripting",
     "storage"
   ],
