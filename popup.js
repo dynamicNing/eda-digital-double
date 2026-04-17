@@ -21,32 +21,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         statusDot.className = 'status-dot logged-out';
         statusText.textContent = '请先打开且慢网站';
         tokenValue.textContent = '-';
+        copyBtn.disabled = true;
         return;
       }
 
-      // 使用tabs.executeScript读取token
-      const results = await chrome.tabs.executeScript(tab.id, {
-        code: `({
-          token: localStorage.getItem('access_token'),
-          phone: localStorage.getItem('phone'),
-          userId: localStorage.getItem('userId'),
-          nickname: localStorage.getItem('nickname')
-        })`
+      // 通过content script通信获取token
+      chrome.runtime.sendMessage({ action: 'getToken' }, (data) => {
+        if (chrome.runtime.lastError) {
+          statusDot.className = 'status-dot logged-out';
+          statusText.textContent = '请刷新且慢页面后重试';
+          tokenValue.textContent = '-';
+          copyBtn.disabled = true;
+          return;
+        }
+
+        if (data && data.token) {
+          statusDot.className = 'status-dot logged-in';
+          statusText.textContent = `已登录 (${data.nickname || data.phone || '未知用户'})`;
+          tokenValue.textContent = data.token;
+          copyBtn.disabled = false;
+        } else {
+          statusDot.className = 'status-dot logged-out';
+          statusText.textContent = '未登录或登录已过期';
+          tokenValue.textContent = '-';
+          copyBtn.disabled = true;
+        }
       });
-
-      const data = results[0];
-
-      if (data.token) {
-        statusDot.className = 'status-dot logged-in';
-        statusText.textContent = `已登录 (${data.nickname || data.phone || '未知用户'})`;
-        tokenValue.textContent = data.token;
-        copyBtn.disabled = false;
-      } else {
-        statusDot.className = 'status-dot logged-out';
-        statusText.textContent = '未登录或登录已过期';
-        tokenValue.textContent = '-';
-        copyBtn.disabled = true;
-      }
     } catch (err) {
       statusDot.className = 'status-dot logged-out';
       statusText.textContent = '读取失败: ' + err.message;

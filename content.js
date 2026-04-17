@@ -1,12 +1,24 @@
-// content.js - 在且慢页面注入，读取localStorage中的access_token
+// content.js - 在且慢页面注入，响应popup的消息请求
 (function() {
-  // 存储token到全局变量，供popup读取
-  window.__edaToken__ = localStorage.getItem('access_token');
-  window.__edaUserInfo__ = {
-    phone: localStorage.getItem('phone'),
-    userId: localStorage.getItem('userId'),
-    nickname: localStorage.getItem('nickname')
-  };
+  // 读取token
+  function getTokenData() {
+    return {
+      token: localStorage.getItem('access_token'),
+      phone: localStorage.getItem('phone'),
+      userId: localStorage.getItem('userId'),
+      nickname: localStorage.getItem('nickname')
+    };
+  }
 
-  console.log('[E大数字分身] access_token已提取:', window.__edaToken__ ? '已获取' : '未登录');
+  // 监听popup的消息
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'getToken') {
+      sendResponse(getTokenData());
+    }
+    return true;
+  });
+
+  // 立即执行一次存储到window
+  window.__edaTokenData__ = getTokenData();
+  console.log('[E大数字分身] token已就绪');
 })();

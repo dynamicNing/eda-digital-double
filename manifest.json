@@ -4,8 +4,7 @@
   "version": "1.0.0",
   "description": "一键提取且慢(qieman.com)登录态access_token，用于数据抓取与分析",
   "permissions": [
-    "activeTab",
-    "tabs"
+    "activeTab"
   ],
   "host_permissions": [
     "https://qieman.com/*"
