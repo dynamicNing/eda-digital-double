@@ -51,53 +51,15 @@ document.addEventListener('DOMContentLoaded', () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       chrome.scripting.executeScript({
         target: { tabId: tabs[0].id },
-        func: () => {
+        // 向 content.js 发消息，让它处理采集
+        func: (tabId) => {
           return new Promise((resolve) => {
-            // 展开全文
-            let expanded = 0;
-            document.querySelectorAll('span').forEach(el => {
-              if (el.textContent === '全文' && el.offsetParent !== null) {
-                el.click();
-                expanded++;
-              }
+            chrome.tabs.sendMessage(tabId, { action: 'collect' }, (response) => {
+              resolve(response || { collected: 0, expanded: 0, total: 0 });
             });
-
-            setTimeout(() => {
-              const posts = [];
-              const timeNodes = document.querySelectorAll('.time-ip-txt');
-              timeNodes.forEach(timeNode => {
-                const container = timeNode.closest('[class*="sc-"]');
-                if (!container) return;
-                const nameEl = container.querySelector('.name');
-                const authorName = nameEl ? nameEl.textContent.replace(/\n|\r/g, '').trim() : '';
-                if (!authorName.includes('ETF拯救世界')) return;
-                const contentEl = container.querySelector('.content-text');
-                const content = contentEl ? contentEl.textContent.replace(/\n|\r/g, '').trim() : '';
-                if (!content) return;
-                posts.push({
-                  author: authorName,
-                  time: timeNode.textContent.replace(/\n|\r/g, '').trim(),
-                  content: content,
-                  url: window.location.href
-                });
-              });
-
-              chrome.storage.local.get(['qieman_posts'], (data) => {
-                const existing = data.qieman_posts || [];
-                const all = existing.concat(posts);
-                const seen = new Set();
-                const deduped = all.filter(p => {
-                  const key = p.content.substring(0, 50);
-                  if (seen.has(key)) return false;
-                  seen.add(key);
-                  return true;
-                });
-                chrome.storage.local.set({ qieman_posts: deduped });
-                resolve({ collected: posts.length, expanded, total: deduped.length });
-              });
-            }, expanded > 0 ? 1500 : 500);
           });
-        }
+        },
+        args: [tabs[0].id]
       }, (results) => {
         collectBtn.disabled = false;
         collectBtn.textContent = '📥 采集本页';
