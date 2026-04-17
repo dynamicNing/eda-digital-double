@@ -13,31 +13,22 @@
     return expanded;
   }
 
-  // 提取帖子数据
-  function extractPosts() {
-    // 查找所有帖子卡片 - 基于实际DOM结构
+  // 提取列表页帖子（/content/community 或类似列表页）
+  function extractListPosts() {
     const posts = [];
-    
-    // 方式1: 查找包含time-ip-txt的父容器（每条动态）
     const timeNodes = document.querySelectorAll('.time-ip-txt');
     timeNodes.forEach(timeNode => {
-      // 往上查找帖子容器
       let container = timeNode.closest('[class*="sc-"]');
       if (!container) return;
       
-      // 找作者名
       const nameEl = container.querySelector('.name');
       const authorName = nameEl ? nameEl.textContent.replace(/[\n\r]/g, '').trim() : '';
-      
-      // 找正文（content-text或直接文本）
       const contentEl = container.querySelector('.content-text');
       let content = contentEl ? contentEl.textContent.replace(/[\n\r]/g, '').trim() : '';
       
-      // 过滤：只要E大(ETF拯救世界)发的帖
       if (!authorName.includes('ETF拯救世界')) return;
       if (!content) return;
       
-      // 时间
       const timeText = timeNode.textContent.replace(/[\n\r]/g, '').trim();
       
       posts.push({
@@ -47,42 +38,69 @@
         url: window.location.href
       });
     });
-    
-    // 方式2: 备用 - 查找帖子正文容器
-    if (posts.length === 0) {
-      const contentEls = document.querySelectorAll('.content-text');
-      contentEls.forEach(el => {
-        const parent = el.closest('[class*="sc-"]');
-        if (!parent) return;
-        const timeEl = parent.querySelector('.time-ip-txt');
-        const nameEl = parent.querySelector('.name');
-        const authorName = nameEl ? nameEl.textContent.replace(/[\n\r]/g, '').trim() : '';
-        if (!authorName.includes('ETF拯救世界')) return;
-        const content = el.textContent.replace(/[\n\r]/g, '').trim();
-        if (!content) return;
-        posts.push({
-          author: authorName,
-          time: timeEl ? timeEl.textContent.replace(/[\n\r]/g, '').trim() : '',
-          content: content,
-          url: window.location.href
-        });
-      });
-    }
-    
     return posts;
+  }
+
+  // 提取详情页帖子（/content/content-detail?postId=xxx）
+  function extractDetailPost() {
+    const posts = [];
+
+    // 找作者名 - 详情页结构
+    const authorEl = document.querySelector('.sc-1s3ggli-5');
+    const authorName = authorEl ? authorEl.textContent.replace(/[\n\r]/g, '').trim() : '';
+    if (!authorName.includes('ETF拯救世界')) return posts;
+
+    // 找正文
+    const contentEl = document.querySelector('.sc-1s3ggli-0');
+    let content = contentEl ? contentEl.textContent.replace(/[\n\r]/g, '').trim() : '';
+
+    // 找时间
+    const timeEl = document.querySelector('.sc-1s3ggli-9');
+    const timeText = timeEl ? timeEl.textContent.replace(/[\n\r]/g, '').trim() : '';
+
+    // 备选：如果上面没找到，尝试 .sc-1a2zkp5-0 里的长文本
+    if (!content) {
+      const altContentEl = document.querySelector('.sc-1a2zkp5-0');
+      if (altContentEl) {
+        const text = altContentEl.textContent;
+        // 过滤掉导航和作者信息，只保留正文
+        const lines = text.split('\n').filter(l => l.trim().length > 20);
+        content = lines.join('\n').trim();
+      }
+    }
+
+    if (!content) return posts;
+
+    posts.push({
+      author: authorName,
+      time: timeText,
+      content: content,
+      url: window.location.href
+    });
+
+    return posts;
+  }
+
+  // 提取帖子数据（自动判断页面类型）
+  function extractPosts() {
+    // 判断是详情页还是列表页
+    const isDetailPage = window.location.pathname.includes('content-detail');
+    
+    if (isDetailPage) {
+      return extractDetailPost();
+    } else {
+      return extractListPosts();
+    }
   }
 
   // 监听来自popup的消息
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'collect') {
-      // 先展开全文
       const expanded = expandAll();
-      // 等待一下让内容渲染
       setTimeout(() => {
         const posts = extractPosts();
         chrome.storage.local.get(['qieman_posts'], (data) => {
           const existing = data.qieman_posts || [];
-          // 合并去重
           const all = existing.concat(posts);
           const seen = new Set();
           const deduped = all.filter(p => {
