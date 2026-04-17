@@ -1,10 +1,11 @@
-// popup.js - 采集帖子逻辑
+// popup.js - 采集帖子 + MD导出逻辑
 document.addEventListener('DOMContentLoaded', () => {
   const statusDot = document.getElementById('statusDot');
   const statusText = document.getElementById('statusText');
   const countNum = document.getElementById('countNum');
   const collectBtn = document.getElementById('collectBtn');
-  const exportBtn = document.getElementById('exportBtn');
+  const exportJsonBtn = document.getElementById('exportJsonBtn');
+  const exportMdBtn = document.getElementById('exportMdBtn');
   const refreshBtn = document.getElementById('refreshBtn');
   const clearBtn = document.getElementById('clearBtn');
   const toast = document.getElementById('toast');
@@ -34,13 +35,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 检查是否在qieman页面
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     const url = tabs[0]?.url || '';
     renderStatus(url.includes('qieman.com'));
     updateCount();
   });
 
+  // 采集按钮
   collectBtn.addEventListener('click', () => {
     collectBtn.disabled = true;
     collectBtn.textContent = '采集中...';
@@ -62,7 +63,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             setTimeout(() => {
-              // 提取E大帖子
               const posts = [];
               const timeNodes = document.querySelectorAll('.time-ip-txt');
               timeNodes.forEach(timeNode => {
@@ -82,7 +82,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
               });
 
-              // 合并去重
               chrome.storage.local.get(['qieman_posts'], (data) => {
                 const existing = data.qieman_posts || [];
                 const all = existing.concat(posts);
@@ -101,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }, (results) => {
         collectBtn.disabled = false;
-        collectBtn.textContent = '📥 采集本页E大帖子';
+        collectBtn.textContent = '📥 采集本页';
         if (chrome.runtime.lastError) {
           statusText.textContent = '采集失败';
           showToast(chrome.runtime.lastError.message, true);
@@ -109,13 +108,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const r = results[0].result;
         countNum.textContent = r.total;
-        statusText.textContent = `已采集 ${r.collected} 条${r.expanded > 0 ? `（展开${r.expanded}处）` : ''}`;
-        showToast(`✅ 本页采集 ${r.collected} 条，共 ${r.total} 条`);
+        statusText.textContent = `已采集 ${r.collected} 条`;
+        showToast(`✅ 本页 ${r.collected} 条，共 ${r.total} 条`);
       });
     });
   });
 
-  exportBtn.addEventListener('click', () => {
+  // 导出JSON
+  exportJsonBtn.addEventListener('click', () => {
     chrome.storage.local.get(['qieman_posts'], (data) => {
       const posts = data.qieman_posts || [];
       const blob = new Blob([JSON.stringify(posts, null, 2)], { type: 'application/json' });
@@ -125,7 +125,49 @@ document.addEventListener('DOMContentLoaded', () => {
       a.download = 'eda-posts-' + Date.now() + '.json';
       a.click();
       URL.revokeObjectURL(url);
-      showToast(`已导出 ${posts.length} 条`);
+      showToast(`已导出 ${posts.length} 条JSON`);
+    });
+  });
+
+  // 导出MD（下载到 ~/Downloads/eda-posts/）
+  exportMdBtn.addEventListener('click', () => {
+    chrome.storage.local.get(['qieman_posts'], (data) => {
+      const posts = data.qieman_posts || [];
+      if (posts.length === 0) {
+        showToast('没有数据可导出', true);
+        return;
+      }
+
+      // 生成MD内容
+      const mdLines = [
+        '# E大（ETF拯救世界）长赢同路人帖子',
+        '',
+        `> 自动采集 · 共 ${posts.length} 条 · ${new Date().toLocaleString('zh-CN')}`,
+        '',
+        '---',
+        ''
+      ];
+
+      posts.forEach((p, i) => {
+        mdLines.push(`## ${i + 1}. ${p.time}`);
+        mdLines.push('');
+        mdLines.push(p.content);
+        mdLines.push('');
+        mdLines.push(`- 来源: ${p.url}`);
+        mdLines.push('---');
+        mdLines.push('');
+      });
+
+      const mdContent = mdLines.join('\n');
+      const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      // 下载到 ~/Downloads/eda-posts/ 文件夹
+      a.download = `eda-posts-${Date.now()}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast(`已导出 ${posts.length} 条MD`);
     });
   });
 

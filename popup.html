@@ -52,10 +52,13 @@
       </div>
     </div>
 
-    <button class="btn btn-primary" id="collectBtn">📥 采集本页E大帖子</button>
-    <button class="btn btn-success" id="exportBtn">💾 导出JSON</button>
-    <button class="btn btn-secondary" id="refreshBtn">🔄 刷新计数</button>
-    <button class="btn btn-danger" id="clearBtn">🗑 清空数据</button>
+    <button class="btn btn-primary" id="collectBtn">📥 采集本页</button>
+    <button class="btn btn-success" id="exportMdBtn">📝 导出MD</button>
+    <button class="btn btn-secondary" id="exportJsonBtn">💾 导出JSON</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-secondary" id="refreshBtn" style="flex:1">🔄 刷新</button>
+      <button class="btn btn-danger" id="clearBtn" style="flex:1">🗑 清空</button>
+    </div>
   </div>
 
   <div class="toast" id="toast"></div>
