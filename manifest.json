@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "E大数字分身",
+  "version": "1.0.0",
+  "description": "一键提取且慢(qieman.com)登录态access_token，用于数据抓取与分析",
+  "permissions": [
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://qieman.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "E大数字分身"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://qieman.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ]
+}
